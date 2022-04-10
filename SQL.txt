@@ -1,0 +1,108 @@
+/*
+1) Query: Preferred MediaType
+*/
+SELECT M.NAME AS MediaType, COUNT(DISTINCT c.customerid)
+FROM customer AS c
+JOIN invoice AS I ON c.customerid = I.customerid
+JOIN invoiceline IL ON i.invoiceid = IL.invoiceid
+JOIN Track t ON IL.trackid = t.trackid
+JOIN MediaType AS M ON M.mediatypeid = t.mediatypeid
+GROUP BY 1
+ORDER BY 2 DESC;
+
+
+/*
+2) Query: Top  10 Albums
+*/
+SELECT AL.Title AS Album_name,SUM(IL.unitprice * IL.quantity)  AS total_sales
+FROM INVOICE as I
+JOIN invoiceline as IL ON I.InvoiceId = IL.INVOICEID
+JOIN track AS t ON IL.TRACKID = t.TRACKID
+JOIN ALBUM AS AL ON AL.ALBUMID = t.ALBUMID
+GROUP BY 1
+ORDER BY 2 DESC
+
+/*
+3) Query: The Top 10 Highest Earning Artists
+*/
+SELECT Artist.Name AS ArtistName,SUM(InvoiceLine.UnitPrice * InvoiceLine.Quantity) AS Artist_income
+FROM InvoiceLine
+JOIN Track
+  ON Track.TrackId = InvoiceLine.TrackId
+JOIN Album
+  ON Album.AlbumId = Track.AlbumId
+JOIN Artist
+  ON Artist.ArtistId = Album.ArtistId
+GROUP BY Artist.Name
+ORDER BY Artist_income DESC
+LIMIT 10;
+
+
+/*
+4) Query: Number of Tracks Customers ordered from each Artist’s work
+*/
+SELECT AR.Name AS Artist_Name,COUNT(*) AS no_of_songs_offered
+FROM InvoiceLine AS IL
+JOIN track AS t ON IL.InvoiceId=t.invoiceId
+JOIN Album AS AL ON AL.AlbumId = t.AlbumId
+JOIN Artist AS AR ON AR.ArtistId = AL.ArtistId
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 10;
+
+
+/*
+Additional query:
+5) Query: Most listened artists in each country
+*/
+WITH t1 as (
+SELECT AR.Name AS Artist_name ,I.BillingCountry AS Country, COUNT(*) AS no_of_orders
+FROM invoice AS I
+JOIN invoiceline AS IL ON IL.InvoiceId = I.InvoiceId
+JOIN track AS t ON t.TrackId = IL.TrackId
+JOIN Album AS AL ON AL.AlbumId = t.AlbumId
+JOIN Artist AS AR ON AR.ArtistId = AL.ArtistId
+GROUP BY 1,2
+ORDER BY 3 DESC ),
+t2 as (
+SELECT t1.Country,MAX(t1.no_of_orders) AS Largest_orders
+FROM t1
+GROUP BY 1
+ORDER BY 2
+)
+SELECT t1.Country,t1.Artist_name,t1.no_of_orders
+FROM t1
+JOIN t2 ON t1.Country = t2.Country
+GROUP BY 1,2
+HAVING t1.no_of_orders = t2.Largest_orders
+ORDER BY 3
+
+
+
+/*
+Additional query:
+6) Query: find out the most popular music Genre for each country.
+*/
+
+WITH t2 as (
+SELECT t1.country AS country,t1.Genre AS GENRE, MAX(t1.purchases) AS purchases
+FROM  (
+       SELECT I.BillingCountry AS country ,G.Name AS GENRE, COUNT(I.TOTAL) AS purchases
+       FROM INVOICE AS I
+       JOIN InvoiceLine AS IL ON I.InvoiceId = IL.InvoiceId
+       JOIN TRACK AS t ON t.TrackId = IL.TrackId
+       JOIN GENRE AS G ON G.GENREID = t.GENREID
+       GROUP BY 1,2) AS t1
+GROUP BY 1,2),
+
+t3 as (
+SELECT t2.country AS country, MAX(t2.purchases) AS purchases
+FROM t2
+GROUP BY 1
+ORDER BY 1
+)
+SELECT t2.Country , t2.Genre , t2.purchases
+FROM t2
+JOIN t3 ON t2.country = t3.country
+GROUP BY t2.country , t2.Genre
+HAVING t2.purchases = t3.purchases
